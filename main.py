@@ -14,60 +14,74 @@ db = SQLAlchemy(app)
 
 class FeedModel(db.Model):
     feedid = db.Column(db.Integer)
-    partnerTrackingGroup = db.Column(db.String(5), primary_key=True, nullable=False)
-    partnerURL = db.column(db.String(100))
-
+    url = db.Column(db.String(100), nullable=False)
+    trackinggroup = db.Column(db.String(5), primary_key=True, nullable=False)
+    
     def __repr__(self):
-        return F"FeedId ="
-        # return f"FeedID = {feedid}, trackingGroup = {partnerTrackingGroup}, partnerURL = {partnerURL}"
+        #  F"FeedId ="
+         return f"FeedID = {feedid}, trackingGroup = {trackinggroup}, partnerURL = {url}"
         # return f"Feed(feedid={feedid}, partnerTrackingGroup={partnerTrackingGroup}, partnerFeedURL={PartnerFeedURL})"
 
-# db.create_all()
+db.create_all()
 
 feed_put_args = reqparse.RequestParser()
-
-feed_put_args.add_argument("partnerTrackingGroup", type=str, help="partnerTrackingGroup is missing")
-feed_put_args.add_argument("partnerURL", type=str, help="URL of Feed", required=True)
+feed_put_args.add_argument("feedid", type=int, help="id is missing", required=True)
+feed_put_args.add_argument("url", type=str, help="URL of Feed", required=True)
 
 feed_update_args = reqparse.RequestParser()
-feed_update_args.add_argument("partnerTrackingGroup", type=str, help="partnerTrackingGroup is missing")
-feed_update_args.add_argument("partnerURL", type=str, help="URL of Feed", required=True)
+feed_update_args.add_argument("feedid", type=int, help="partnerTrackingGr up is missing")
+feed_update_args.add_argument("url", type=str, help="URL of Feed")
 
 resource_fields = {
     "feedid": fields.Integer,
-    "partnerURL": fields.String,
-    "partnerTrackingGroup": fields.String
+    "url": fields.String,
+    "trackinggroup": fields.String
     
 }
 feeds = {}
 
 class Feed(Resource):
     @marshal_with(resource_fields)
-    def get(self, trackingGroup):
-        result = FeedModel.query.filter_by(id=trackingGroup).first()
+    def get(self, trackinggroup):
+        result = FeedModel.query.filter_by(trackinggroup=trackinggroup).first()
         if not result:
             abort(404, message="no feed with that trackingGroup")
         return result
 
     @marshal_with(resource_fields)
-    def put(self, trackingGroup):
+    def put(self, trackinggroup):
         args = feed_put_args.parse_args()
-        result = FeedModel.query.filter_by(partnerTrackingGroup=trackingGroup).first()
+        result = FeedModel.query.filter_by(trackinggroup=trackinggroup).first()
         if result:
             abort(409, message="already a feed for trackingGroup")
-        #feed = FeedModel(id=feedid, partnerURL=args[partnerURL], trackingGroup=args[partnerTrackingGroup])
-        #db.session.add(feed)
-        #db.session.commit()
+        feed = FeedModel(trackinggroup=trackinggroup, url=args['url'], feedid=args['feedid'])
+
+        db.session.add(feed)
+        db.session.commit()
         return feeds, 201
 
-    def delete(self, trackingGroup):
+    @marshal_with(resource_fields)
+    def patch(self, trackinggroup):
+        args = feed_update_args.parse_args()
+        result = FeedModel.query.filter_by(trackinggroup=trackinggroup).first()
+        if not result:
+            abort(404, message="no feed exists")
+
+        if args['url']:
+            result.url = args['url']
+        
+        db.session.commit()
+        
+        return result
+
+    def delete(self, trackinggroup):
         #abort_if_no_feed_exists(trackingGroup)
-        del feeds[trackingGroup]
+        del feeds[trackinggroup]
         return '', 204
 
 
 
-api.add_resource(Feed, "/feed/<int:trackingGroup>")   
+api.add_resource(Feed, "/feed/<int:trackinggroup>")   
 
 
 if __name__ == "__main__":

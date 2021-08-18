@@ -1,26 +1,39 @@
 import socket
-import mysql.connector
+from flask_restful.fields import Url
+import requests
 
 hostname = socket.gethostname()
 # print(hostname)
+BASE = "http://127.0.0.1:5000/"
+def get_query_param(promoURL=None):
+    if promoURL is not None:
+       return True
+    else:
+       return None
 
-cnx = mysql.connector.connect(user='root', password='',
-                              host='127.0.0.1',
-                              database='partnerMRSSfeed')
 
-cursor = cnx.cursor()
 
-query = ("SELECT feedURL FROM `PartnerMRSS`" 
-         "WHERE `PartnerMRSS`.`trackingGroup` = 93425 AND `isActive` = 1")
 
-cursor.execute(query)
+#cnx = mysql.connector.connect(user='root', password='', host='127.0.0.1',database='partnerMRSSfeed')
 
-for (feedURL) in cursor:
-    rssFeedURL = feedURL # set feedURL to rssFeedURL
+#cursor = cnx.cursor()
 
-cursor.close()
-cnx.close()
+#query = ("SELECT feedURL FROM `PartnerMRSS`" 
+#         "WHERE `PartnerMRSS`.`trackingGroup` = 93425 AND `isActive` = 1")
 
+#cursor.execute(query)
+
+#for (feedURL) in cursor:
+#    rssFeedURL = feedURL # set feedURL to rssFeedURL
+
+#cursor.close()
+#cnx.close()
+
+response = requests.get(BASE + "feed/12345")
+data = response.json()
+feedURL = data.get("url")
+rssFeedURL = feedURL.replace("\\","")
+print(rssFeedURL)
 def get_posts_details(rss=None):
 	
 	"""
@@ -74,16 +87,19 @@ if __name__ == "__main__":
 
     # feed_url = "https://rss.politico.com/energy.xml"
 
-    # feed_url = "https://thebright.com/feed/"
+    #feed_url = "https://thebright.com/feed/"
     
-    print("The Feed is:{} ".format(rssFeedURL))
+   # print("The Feed is:{} ".format(rssFeedURL))
     # print(rssFeedURL)   
 
     feed_url = ''.join(rssFeedURL)
-    print(feed_url)
+    #feed_url = ''.join(feed_url)
+
+    #print(feed_url)
     data = get_posts_details(rss = feed_url) # return blogs data as a dictionary
         
     if data:
+    
         # printing as a json string with indentation level = 2
         print(json.dumps(data, indent=2))
     else:
