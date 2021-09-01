@@ -1,15 +1,17 @@
 from os import name
-from flask import Flask
+from flask import Flask, jsonify
 from flask.scaffold import F 
 from flask_restful import Api, Resource, abort, reqparse, fields, marshal_with
 from flask_sqlalchemy import SQLAlchemy
-
-# from requests.api import delete
+from flask_cors import CORS, cross_origin
 
 app = Flask(__name__)
+cors = CORS(app)
+app.config['CORS_HEADERS'] = 'Content-Type'
+
 api = Api(app)
-# app.config['SQLALCHEMY_DATABASE_URI'] = "mysql:/root:@127.0.0.1:5000/"
 app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///tmp/database.db"
+app.config['SERVER_NAME'] = "localhost:5000"
 db = SQLAlchemy(app)
 
 class FeedModel(db.Model):
@@ -18,11 +20,18 @@ class FeedModel(db.Model):
     trackinggroup = db.Column(db.String(5), primary_key=True, nullable=False)
     
     def __repr__(self):
-        #  F"FeedId ="
          return f"FeedID = {feedid}, trackingGroup = {trackinggroup}, partnerURL = {url}"
-        # return f"Feed(feedid={feedid}, partnerTrackingGroup={partnerTrackingGroup}, partnerFeedURL={PartnerFeedURL})"
-
-db.create_all()
+        
+class ArticleModel():
+    feedid = fields.Integer
+    url = fields.String
+    trackinggroup = fields.String
+    thumbnail = fields.String
+    
+    def __repr__(self):
+         return f"FeedID = {feedid}, trackingGroup = {trackinggroup}, partnerURL = {url}"
+        
+#db.create_all()
 
 feed_put_args = reqparse.RequestParser()
 feed_put_args.add_argument("feedid", type=int, help="id is missing", required=True)
@@ -35,7 +44,8 @@ feed_update_args.add_argument("url", type=str, help="URL of Feed")
 resource_fields = {
     "feedid": fields.Integer,
     "url": fields.String,
-    "trackinggroup": fields.String
+    "trackinggroup": fields.String,
+    "thumbnail": fields.String
     
 }
 feeds = {}
@@ -79,10 +89,90 @@ class Feed(Resource):
         del feeds[trackinggroup]
         return '', 204
 
+resource_fields_article = {
+    "feedid": fields.Integer,    
+    "url": fields.String,
+    "link": fields.String,
+    "thumbnail": fields.String    
+}
+
+class Returnurl(Resource):
+    @marshal_with(resource_fields_article)
+    def get(self, trackinggroup):
+        result = FeedModel.query.filter_by(trackinggroup=trackinggroup).first()
+        rssFeedURL = result.url.replace("\\","")
+        return rssFeedURL
 
 
-api.add_resource(Feed, "/feed/<int:trackinggroup>")   
+class parseURL(Resource):
+    @marshal_with(resource_fields_article)
+    def get(self, trackinggroup):
+        result = FeedModel.query.filter_by(trackinggroup=trackinggroup).first()
+        rssFeedURL = result.url.replace("\\","")
+        print('rssFeedURL: ' + rssFeedURL)        
+
+
+def getPartnerFeedUrl(trackinggroup):
+    result = FeedModel.query.filter_by(trackinggroup=trackinggroup).first()
+    return result
+
+def parseurl(rssFeedURL):
+    if rssFeedURL is not None:
+        #print("rssfeedurl is not none")
+        import feedparser # type: ignore
+        import json
+        
+        # parsing partner feed
+        partner_feed = partner_feed = feedparser.parse(rssFeedURL)
+        
+        # getting lists of partner entries via .entries
+        posts = partner_feed.entries
+        
+        post_list = []
+        
+        # iterating over individual posts        
+        for post in posts:
+            temp = dict()
+            
+            # if any post doesn't have information then throw error.
+            try:    
+                temp["title"] = post.title
+                temp["link"] = post.link
+                temp["imageSrc"] = post.media_thumbnail
+                # temp["author"] = post.author
+                # temp["time_published"] = post.published
+
+            except:
+                pass
+            
+            post_list.append(temp)
+       
+    response = jsonify(post_list)    
+    return response
+
+def main():
+    import requests
+    from flask import Flask, jsonify
+    from flask_sqlalchemy import SQLAlchemy
+    from markupsafe import escape   
+         
+    BASE = "http://localhost:5000/"
+
+    api.add_resource(Feed, "/feed/<int:trackinggroup>", endpoint="feed")
+
+    @app.route("/")
+    @cross_origin()
+    
+    @app.route('/articles/<trackinggroup>', endpoint="articles")
+    def gettrackinggroup(trackinggroup):
+        data = requests.get(BASE + "feed/" + trackinggroup)
+        data = data.json()
+        feedURLfromData = data["url"]
+        rssFeedURL = feedURLfromData.replace("\\","")
+        return parseurl(rssFeedURL)
+
+    app.run(debug=True)
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    main()
