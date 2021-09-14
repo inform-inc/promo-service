@@ -1,9 +1,9 @@
 from os import name
 from flask import Flask, jsonify
-from flask.scaffold import F 
 from flask_restful import Api, Resource, abort, reqparse, fields, marshal_with
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS, cross_origin
+from werkzeug.utils import cached_property
 
 app = Flask(__name__)
 cors = CORS(app)
@@ -11,7 +11,7 @@ app.config['CORS_HEADERS'] = 'Content-Type'
 
 api = Api(app)
 app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///tmp/database.db"
-app.config['SERVER_NAME'] = "localhost:5000"
+app.config['SERVER_NAME'] = "0.0.0.0:5000"
 db = SQLAlchemy(app)
 
 class FeedModel(db.Model):
@@ -156,7 +156,7 @@ def main():
     from flask_sqlalchemy import SQLAlchemy
     from markupsafe import escape   
          
-    BASE = "http://localhost:5000/"
+    BASE = "http://0.0.0.0:5000/"
 
     api.add_resource(Feed, "/feed/<int:trackinggroup>", endpoint="feed")
 
@@ -171,7 +171,7 @@ def main():
         rssFeedURL = feedURLfromData.replace("\\","")
         return parseurl(rssFeedURL)
 
-    app.run(debug=True)
+    app.run(host="0.0.0.0", debug=True)
 
 
 if __name__ == "__main__":
