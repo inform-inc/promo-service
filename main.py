@@ -1,5 +1,5 @@
 from os import name
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_restful import Api, Resource, abort, reqparse, fields, marshal_with
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import create_engine
@@ -11,9 +11,13 @@ cors = CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
 
 api = Api(app)
+
 engine = create_engine('postgresql+psycopg2://postgres:Mj3nH5@db:5432/promofeeds')
 app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql+psycopg2://postgres:Mj3nH5@db:5432/promofeeds"
 app.config['SERVER_NAME'] = "0.0.0.0:5000"
+
+app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///tmp/database.db"
+
 db = SQLAlchemy(app)
 
 class FeedModel(db.Model):
@@ -159,8 +163,6 @@ def main():
     from flask_sqlalchemy import SQLAlchemy
     from markupsafe import escape   
          
-    BASE = "http://0.0.0.0:5000/"
-
     api.add_resource(Feed, "/feed/<int:trackinggroup>", endpoint="feed")
 
     @app.route("/")
@@ -168,13 +170,13 @@ def main():
     
     @app.route('/articles/<trackinggroup>', endpoint="articles")
     def gettrackinggroup(trackinggroup):
-        data = requests.get(BASE + "feed/" + trackinggroup)
+        data = requests.get(request.url_root + "feed/" + trackinggroup)
         data = data.json()
         feedURLfromData = data["url"]
         rssFeedURL = feedURLfromData.replace("\\","")
         return parseurl(rssFeedURL)
 
-    app.run(host="0.0.0.0", debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
 
 
 if __name__ == "__main__":
