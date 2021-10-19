@@ -2,6 +2,7 @@ from os import name
 from flask import Flask, jsonify
 from flask_restful import Api, Resource, abort, reqparse, fields, marshal_with
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import create_engine
 from flask_cors import CORS, cross_origin
 from werkzeug.utils import cached_property
 
@@ -10,41 +11,42 @@ cors = CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
 
 api = Api(app)
-app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///tmp/database.db"
+engine = create_engine('postgresql+psycopg2://postgres:Mj3nH5@db:5432/promofeeds')
+app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql+psycopg2://postgres:Mj3nH5@db:5432/promofeeds"
 app.config['SERVER_NAME'] = "0.0.0.0:5000"
 db = SQLAlchemy(app)
 
 class FeedModel(db.Model):
     feedid = db.Column(db.Integer)
     url = db.Column(db.String(100), nullable=False)
-    trackinggroup = db.Column(db.String(5), primary_key=True, nullable=False)
+    trackinggroup = db.Column(db.Integer, primary_key=True, nullable=False)
     
     def __repr__(self):
          return f"FeedID = {feedid}, trackingGroup = {trackinggroup}, partnerURL = {url}"
-        
+db.create_all()     
 class ArticleModel():
     feedid = fields.Integer
     url = fields.String
-    trackinggroup = fields.String
+    trackinggroup = fields.Integer
     thumbnail = fields.String
     
     def __repr__(self):
          return f"FeedID = {feedid}, trackingGroup = {trackinggroup}, partnerURL = {url}"
         
-#db.create_all()
+
 
 feed_put_args = reqparse.RequestParser()
 feed_put_args.add_argument("feedid", type=int, help="id is missing", required=True)
 feed_put_args.add_argument("url", type=str, help="URL of Feed", required=True)
 
 feed_update_args = reqparse.RequestParser()
-feed_update_args.add_argument("feedid", type=int, help="partnerTrackingGr up is missing")
+feed_update_args.add_argument("feedid", type=int, help="partnerTrackingGroup is missing")
 feed_update_args.add_argument("url", type=str, help="URL of Feed")
 
 resource_fields = {
     "feedid": fields.Integer,
     "url": fields.String,
-    "trackinggroup": fields.String,
+    "trackinggroup": fields.Integer,
     "thumbnail": fields.String
     
 }
@@ -53,6 +55,7 @@ feeds = {}
 class Feed(Resource):
     @marshal_with(resource_fields)
     def get(self, trackinggroup):
+        print(trackinggroup)
         result = FeedModel.query.filter_by(trackinggroup=trackinggroup).first()
         if not result:
             abort(404, message="no feed with that trackingGroup")
