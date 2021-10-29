@@ -1,3 +1,5 @@
+
+import sys
 from os import name
 from flask import Flask, jsonify, request
 from flask_restful import Api, Resource, abort, reqparse, fields, marshal_with
@@ -5,29 +7,45 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import create_engine
 from flask_cors import CORS, cross_origin
 from werkzeug.utils import cached_property
+from sqlalchemy.orm import sessionmaker
+from safrs import SAFRSBase, SAFRSAPI
 
+# create a Flask app
 app = Flask(__name__)
+
+# Allows CORS
 cors = CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
 
 api = Api(app)
 
+# Connect to postgresql db
 engine = create_engine('postgresql+psycopg2://postgres:Mj3nH5@db:5432/promofeeds')
 app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql+psycopg2://postgres:Mj3nH5@db:5432/promofeeds"
+
+# App IP 
 app.config['SERVER_NAME'] = "0.0.0.0:5000"
 
-app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///tmp/database.db"
+# create a configured "Session" class
+Session = sessionmaker(bind=engine)
 
+# create a Session
+session = Session()
 db = SQLAlchemy(app)
 
+# create Table for Feeds with FeedID, URL, and TrackingGroup
 class FeedModel(db.Model):
+    __tablename__ = "promofeeds"
     feedid = db.Column(db.Integer)
     url = db.Column(db.String(100), nullable=False)
     trackinggroup = db.Column(db.Integer, primary_key=True, nullable=False)
     
     def __repr__(self):
          return f"FeedID = {feedid}, trackingGroup = {trackinggroup}, partnerURL = {url}"
-db.create_all()     
+
+# Create table
+db.create_all()  
+   
 class ArticleModel():
     feedid = fields.Integer
     url = fields.String
@@ -37,12 +55,12 @@ class ArticleModel():
     def __repr__(self):
          return f"FeedID = {feedid}, trackingGroup = {trackinggroup}, partnerURL = {url}"
         
-
-
+# CRUD args for Put call 
 feed_put_args = reqparse.RequestParser()
 feed_put_args.add_argument("feedid", type=int, help="id is missing", required=True)
 feed_put_args.add_argument("url", type=str, help="URL of Feed", required=True)
 
+#CRUD for Update call
 feed_update_args = reqparse.RequestParser()
 feed_update_args.add_argument("feedid", type=int, help="partnerTrackingGroup is missing")
 feed_update_args.add_argument("url", type=str, help="URL of Feed")
@@ -56,10 +74,10 @@ resource_fields = {
 }
 feeds = {}
 
+# Class for FeedModel CRUD Query
 class Feed(Resource):
     @marshal_with(resource_fields)
     def get(self, trackinggroup):
-        print(trackinggroup)
         result = FeedModel.query.filter_by(trackinggroup=trackinggroup).first()
         if not result:
             abort(404, message="no feed with that trackingGroup")
@@ -102,7 +120,7 @@ resource_fields_article = {
     "link": fields.String,
     "thumbnail": fields.String    
 }
-
+# Return Feed URL to use for parser
 class Returnurl(Resource):
     @marshal_with(resource_fields_article)
     def get(self, trackinggroup):
@@ -110,22 +128,32 @@ class Returnurl(Resource):
         rssFeedURL = result.url.replace("\\","")
         return rssFeedURL
 
-
+# Parse url since \\ gets added
 class parseURL(Resource):
     @marshal_with(resource_fields_article)
     def get(self, trackinggroup):
         result = FeedModel.query.filter_by(trackinggroup=trackinggroup).first()
         rssFeedURL = result.url.replace("\\","")
-        print('rssFeedURL: ' + rssFeedURL)        
+        #print('rssFeedURL: ' + rssFeedURL)        
 
 
-def getPartnerFeedUrl(trackinggroup):
-    result = FeedModel.query.filter_by(trackinggroup=trackinggroup).first()
-    return result
+#def getPartnerFeedUrl(trackinggroup):
+#    result = FeedModel.query.filter_by(trackinggroup=trackinggroup).first()
+#    return result
 
+def create_api(app, host="localhost", port=5000, api_prefix=""):
+    api = SAFRSAPI(app, host=host, port=port, prefix=api_prefix)
+    api.expose_object(User)
+    api.expose_object(Book)
+    print(f"Created API: http://{host}:{port}/{api_prefix}")
+
+# Parse URL from giving URL 
+# "rssFeedURL": feed URL from parseURL
+#
 def parseurl(rssFeedURL):
+    # if there is a URL then proceed
     if rssFeedURL is not None:
-        #print("rssfeedurl is not none")
+        
         import feedparser # type: ignore
         import json
         
@@ -135,6 +163,7 @@ def parseurl(rssFeedURL):
         # getting lists of partner entries via .entries
         posts = partner_feed.entries
         
+        #init list
         post_list = []
         
         # iterating over individual posts        
@@ -145,15 +174,14 @@ def parseurl(rssFeedURL):
             try:    
                 temp["title"] = post.title
                 temp["link"] = post.link
-                temp["imageSrc"] = post.media_thumbnail
-                # temp["author"] = post.author
-                # temp["time_published"] = post.published
+                temp["imageSrc"] = post.media_thumbnail                
 
             except:
                 pass
             
             post_list.append(temp)
-       
+
+    # return the response as json   
     response = jsonify(post_list)    
     return response
 
@@ -162,12 +190,14 @@ def main():
     from flask import Flask, jsonify
     from flask_sqlalchemy import SQLAlchemy
     from markupsafe import escape   
-         
+        
+    # add resouce for returning feed info givin the trackinggroup
     api.add_resource(Feed, "/feed/<int:trackinggroup>", endpoint="feed")
 
     @app.route("/")
     @cross_origin()
     
+    # get the list of items givin a tracking group - returns as json
     @app.route('/articles/<trackinggroup>', endpoint="articles")
     def gettrackinggroup(trackinggroup):
         data = requests.get(request.url_root + "feed/" + trackinggroup)
@@ -178,6 +208,6 @@ def main():
 
     app.run(host="0.0.0.0", port=5000, debug=True)
 
-
+# init main()
 if __name__ == "__main__":
     main()
