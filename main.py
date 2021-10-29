@@ -1,5 +1,6 @@
 
 import sys
+import os
 from os import name
 from flask import Flask, jsonify, request
 from flask_restful import Api, Resource, abort, reqparse, fields, marshal_with
@@ -9,6 +10,9 @@ from flask_cors import CORS, cross_origin
 from werkzeug.utils import cached_property
 from sqlalchemy.orm import sessionmaker
 from safrs import SAFRSBase, SAFRSAPI
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # create a Flask app
 app = Flask(__name__)
@@ -20,8 +24,8 @@ app.config['CORS_HEADERS'] = 'Content-Type'
 api = Api(app)
 
 # Connect to postgresql db
-engine = create_engine('postgresql+psycopg2://postgres:Mj3nH5@db:5432/promofeeds')
-app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql+psycopg2://postgres:Mj3nH5@db:5432/promofeeds"
+engine = create_engine(os.environ['DATABASE_URI'])
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URI']
 
 # App IP 
 app.config['SERVER_NAME'] = "0.0.0.0:5000"
