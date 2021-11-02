@@ -24,11 +24,18 @@ app.config['CORS_HEADERS'] = 'Content-Type'
 api = Api(app)
 
 # Connect to postgresql db
-engine = create_engine(os.environ['DATABASE_URI'])
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URI']
+db_host = os.environ['DB_HOST']
+db_port = os.environ['DB_PORT'] or 5432
+db_user = os.environ['DB_USER'] or 'postgres'
+db_pass = os.environ['DB_PASS']
+database_uri = "postgresql+psycopg2://{}:{}@{}:{}/promofeeds".format(db_user, db_pass, db_host, db_port)
+engine = create_engine(database_uri)
+app.config['SQLALCHEMY_DATABASE_URI'] = database_uri
 
 # App IP 
-app.config['SERVER_NAME'] = "0.0.0.0:5000"
+server_name = os.environ['SERVER_NAME'] or '0.0.0.0'
+server_port = os.environ['SERVER_PORT'] or 5000
+app.config['SERVER_NAME'] = "{}:{}".format(server_name, server_port)
 
 # create a configured "Session" class
 Session = sessionmaker(bind=engine)
@@ -210,7 +217,7 @@ def main():
         rssFeedURL = feedURLfromData.replace("\\","")
         return parseurl(rssFeedURL)
 
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port={}, debug=True).format(server_port)
 
 # init main()
 if __name__ == "__main__":
