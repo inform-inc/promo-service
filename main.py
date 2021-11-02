@@ -1,7 +1,7 @@
 
 import sys
-import os
-from os import name
+#import os
+from os import name, environ, getenv
 from flask import Flask, jsonify, request
 from flask_restful import Api, Resource, abort, reqparse, fields, marshal_with
 from flask_sqlalchemy import SQLAlchemy
@@ -11,6 +11,8 @@ from werkzeug.utils import cached_property
 from sqlalchemy.orm import sessionmaker
 from safrs import SAFRSBase, SAFRSAPI
 from dotenv import load_dotenv
+from healthcheck import HealthCheck
+from sqlalchemy.types import Text
 
 load_dotenv()
 
@@ -24,18 +26,19 @@ app.config['CORS_HEADERS'] = 'Content-Type'
 api = Api(app)
 
 # Connect to postgresql db
-db_host = os.environ['DB_HOST']
-db_port = os.environ['DB_PORT'] or 5432
-db_user = os.environ['DB_USER'] or 'postgres'
-db_pass = os.environ['DB_PASS']
+db_host = getenv('DB_HOST')
+db_port = getenv('DB_PORT') or 5432
+db_user = getenv('DB_USER') or 'postgres'
+db_pass = getenv('DB_PASS')
 database_uri = "postgresql+psycopg2://{}:{}@{}:{}/promofeeds".format(db_user, db_pass, db_host, db_port)
 engine = create_engine(database_uri)
 app.config['SQLALCHEMY_DATABASE_URI'] = database_uri
 
 # App IP 
-server_name = os.environ['SERVER_NAME'] or '0.0.0.0'
-server_port = os.environ['SERVER_PORT'] or 5000
-app.config['SERVER_NAME'] = "{}:{}".format(server_name, server_port)
+server_name = getenv('SERVER_NAME')
+server_port = getenv('SERVER_PORT') or 5000
+if server_name:
+    app.config['SERVER_NAME'] = "{}:{}".format(server_name, server_port)
 
 # create a configured "Session" class
 Session = sessionmaker(bind=engine)
@@ -196,6 +199,20 @@ def parseurl(rssFeedURL):
     response = jsonify(post_list)    
     return response
 
+# Healthcheck
+health = HealthCheck(app, "/healthcheck")
+def database_available():
+    working = True
+    output = "database is functioning"
+    try:
+        session.execute('SELECT 1')
+    except Exception as e:
+        output = str(e)
+        working = False
+    return working, output
+
+health.add_check(database_available)
+
 def main():
     import requests
     from flask import Flask, jsonify
@@ -217,7 +234,7 @@ def main():
         rssFeedURL = feedURLfromData.replace("\\","")
         return parseurl(rssFeedURL)
 
-    app.run(host="0.0.0.0", port={}, debug=True).format(server_port)
+    app.run(host="0.0.0.0", port=server_port, debug=True)
 
 # init main()
 if __name__ == "__main__":
