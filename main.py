@@ -11,9 +11,6 @@ from safrs import SAFRSBase, SAFRSAPI
 from healthcheck import HealthCheck
 from sqlalchemy.types import Text
 
-#load env var from .env
-load_dotenv()
-
 # create a Flask app
 app = Flask(__name__)
 
