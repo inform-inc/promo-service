@@ -1,8 +1,6 @@
-
 import sys
-#import os
 from os import name, environ, getenv
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, make_response
 from flask_restful import Api, Resource, abort, reqparse, fields, marshal_with
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import create_engine
@@ -14,6 +12,7 @@ from dotenv import load_dotenv
 from healthcheck import HealthCheck
 from sqlalchemy.types import Text
 
+#load env var from .env
 load_dotenv()
 
 # create a Flask app
@@ -134,35 +133,9 @@ resource_fields_article = {
     "link": fields.String,
     "thumbnail": fields.String    
 }
-# Return Feed URL to use for parser
-class Returnurl(Resource):
-    @marshal_with(resource_fields_article)
-    def get(self, trackinggroup):
-        result = FeedModel.query.filter_by(trackinggroup=trackinggroup).first()
-        rssFeedURL = result.url.replace("\\","")
-        return rssFeedURL
 
-# Parse url since \\ gets added
-class parseURL(Resource):
-    @marshal_with(resource_fields_article)
-    def get(self, trackinggroup):
-        result = FeedModel.query.filter_by(trackinggroup=trackinggroup).first()
-        rssFeedURL = result.url.replace("\\","")
-        #print('rssFeedURL: ' + rssFeedURL)        
-
-
-#def getPartnerFeedUrl(trackinggroup):
-#    result = FeedModel.query.filter_by(trackinggroup=trackinggroup).first()
-#    return result
-
-def create_api(app, host="localhost", port=5000, api_prefix=""):
-    api = SAFRSAPI(app, host=host, port=port, prefix=api_prefix)
-    api.expose_object(User)
-    api.expose_object(Book)
-    print(f"Created API: http://{host}:{port}/{api_prefix}")
-
-# Parse URL from giving URL 
-# "rssFeedURL": feed URL from parseURL
+# Parse URL from given URL 
+# "rssFeedURL": feed URL from gettrackinggroup
 #
 def parseurl(rssFeedURL):
     # if there is a URL then proceed
@@ -213,26 +186,35 @@ def database_available():
 
 health.add_check(database_available)
 
+# main
 def main():
     import requests
     from flask import Flask, jsonify
     from flask_sqlalchemy import SQLAlchemy
     from markupsafe import escape   
         
-    # add resouce for returning feed info givin the trackinggroup
+    # add resouce for returning feed info given the trackinggroup
     api.add_resource(Feed, "/feed/<int:trackinggroup>", endpoint="feed")
-
+    
     @app.route("/")
     @cross_origin()
     
-    # get the list of items givin a tracking group - returns as json
+    # get the list of items givin a tracking group - returns as json    
     @app.route('/articles/<trackinggroup>', endpoint="articles")
+    
+    #gets trackinggroup from api uri, gets the feed from getURL and then sends it to the parser for display
     def gettrackinggroup(trackinggroup):
-        data = requests.get(request.url_root + "feed/" + trackinggroup)
-        data = data.json()
-        feedURLfromData = data["url"]
-        rssFeedURL = feedURLfromData.replace("\\","")
-        return parseurl(rssFeedURL)
+        rssFeedURL = getUrl(trackinggroup)                
+        #print(rssFeedURL, file=sys.stderr)
+        return parseurl(rssFeedURL)        
+    
+    # gets the url of the partner from the db
+    def getUrl(trackinggroup):
+        # data = requests.get(request.url_root + "feed/" + trackinggroup)
+        results = engine.execute("select url from promofeeds where trackingGroup='"+trackinggroup+"'")        
+        data = [i[0] for i in results]
+        result = str(data)[2:-2]       #trims the list
+        return result
 
     app.run(host="0.0.0.0", port=server_port, debug=True)
 
