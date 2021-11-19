@@ -13,8 +13,6 @@ print(response.json())
 #print(response.json())
 response = requests.put(BASE + "feed/98765", {"feedid":106, "url":"https://popularmilitary.com/feed/", "trackinggroup":98765})
 print(response.json())
-#testing
-#more testing
 
 response = requests.get(BASE + "feed/93556")
 print(response.json())
