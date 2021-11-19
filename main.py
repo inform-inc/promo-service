@@ -8,7 +8,6 @@ from flask_cors import CORS, cross_origin
 from werkzeug.utils import cached_property
 from sqlalchemy.orm import sessionmaker
 from safrs import SAFRSBase, SAFRSAPI
-from dotenv import load_dotenv
 from healthcheck import HealthCheck
 from sqlalchemy.types import Text
 
