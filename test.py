@@ -1,7 +1,7 @@
 import requests
 
 BASE = "http://0.0.0.0:5000/"
-     
+print("running test.py")   
 # response = requests.get(BASE + "feed/98765")
 # print(response.json())
 #response = requests.get(BASE + "feed/93425")
@@ -16,8 +16,10 @@ response = requests.put(BASE + "feed/93425", {"feedid":106, "url":"https://popul
 
 response = requests.get(BASE + "feed/93556")
 print(response.json())
-response = requests.get(BASE + "feed/98765")
+response = requests.get(BASE + "feed/77008")
+print(response.json())
+response = requests.get(BASE + "feed/93425")
 print(response.json())
 #response = requests.patch(BASE + "feed/93425",{"url":"https://popularmilitary.com/feed/"})
 #print(response.json())
-
+print("end of test.py") 
