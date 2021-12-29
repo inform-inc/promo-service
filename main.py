@@ -8,7 +8,8 @@ from flask_cors import CORS, cross_origin
 from werkzeug.utils import cached_property
 from sqlalchemy.orm import sessionmaker
 from safrs import SAFRSBase, SAFRSAPI
-from healthcheck import HealthCheck
+from flask_healthz import Healthz
+from flask_healthz import HealthError
 from sqlalchemy.types import Text
 
 # create a Flask app
@@ -168,19 +169,21 @@ def parseurl(rssFeedURL):
     response = jsonify(post_list)    
     return response
 
-# Healthcheck
-health = HealthCheck(app, "/healthcheck")
-def database_available():
-    working = True
-    output = "database is functioning"
+# Health Checks
+Healthz(app, no_log=True)
+def liveness():
+    pass
+def readiness():
     try:
         session.execute('SELECT 1')
-    except Exception as e:
-        output = str(e)
-        working = False
-    return working, output
-
-health.add_check(database_available)
+    except Exception:
+        raise HealthError("Unable to connect to DB")
+app.config.update(
+    HEALTHZ = {
+        "live": "main.liveness",
+        "ready": "main.readiness"
+    }
+)
 
 # main
 def main():
